@@ -41,8 +41,8 @@ http {
 
   keepalive_timeout 10;
 
-  # proxy_cache_path /dev/shm/cache levels=1:2 keys_zone=cache-space:8192m max_size=6g inactive=15d;
-  # proxy_temp_path /dev/shm/tmp;
+  proxy_cache_path /tmp/nginx/cache levels=1:2 keys_zone=cache-space:500m max_size=6g inactive=15d;
+  proxy_temp_path /tmp/nginx/tmp;
 
   # 静的ファイルのファイルディクリプタキャッシュ
   open_file_cache max=100000 inactive=300s;
@@ -50,59 +50,8 @@ http {
   open_file_cache_min_uses 1;
   open_file_cache_errors on;
 
-  upstream app {
-    server unix:/dev/shm/server.sock fail_timeout=0;
-  }
-
   server {
     listen  80;
-
-    # gzip
-    # gzip on;
-    # gzip_proxied any;
-    # gzip_min_length 1000;
-    # gzip_disable "MSIE [5-6]\."; # ie5 ie6 の場合は無視
-    # gzip_vary on;
-    # gzip_types text/css text/javascript application/javascript application/x-javascript application/json;
-
-    # gzip_static on;
-
-    # status: 413 Request Entity Too Large
-    client_max_body_size 1024m;
-
-    location / {
-      proxy_buffering on;
-      # バッファ設定
-      proxy_buffers 16 128k;
-      proxy_buffer_size 128k;
-      proxy_busy_buffers_size 128k;
-
-      proxy_headers_hash_bucket_size 256;
-      proxy_headers_hash_max_size     2048;
-
-      proxy_connect_timeout 4;
-      proxy_send_timeout 4;
-      proxy_read_timeout 30;
-
-      client_body_buffer_size 64k;
-
-      # http
-
-      proxy_set_header      Host                   $host;
-      # proxy_set_header      X-Real-IP              $remote_addr;
-      # proxy_set_header      X-Forwarded-Host       $host;
-      # proxy_set_header      X-Forwarded-Server     $host;
-      # proxy_set_header      X-Forwarded-For        $proxy_add_x_forwarded_for;
-      # proxy_set_header      X-Forwarded-Proto      $scheme;
-      proxy_http_version 1.1;
-      # proxy_set_header Connection "";
-      # proxy_pass http://localhost:5000;
-      proxy_pass http://app;
-    }
-
-    location /assets/slots/ {
-      root /tmp/go/;
-    }
 
     location /javascripts/ {
       # access_log off;
@@ -126,6 +75,17 @@ http {
       # access_log off;
       # expires 1d;
       root /home/isucon/webapp/public/;
+    }
+
+    location /slots {
+      proxy_cache cache-space;
+      proxy_cache_valid 200 30d;
+      proxy_cache_valid 403 404 10s;
+      proxy_cache_valid any 10s;
+      proxy_ignore_headers Set-Cookie;
+
+      expires 14d;
+      proxy_pass http://isucon2/slots;
     }
 
   }
