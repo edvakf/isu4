@@ -2,12 +2,10 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"flag"
 	"fmt"
 	"hash/crc32"
 	"io"
-	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -338,14 +336,21 @@ func routePostAd(r render.Render, req *http.Request, params martini.Params) {
 
 	f, _ := asset.Open()
 	defer f.Close()
-	buf := bytes.NewBuffer(nil)
-	io.Copy(buf, f)
-	//asset_data := string(buf.Bytes())
 
 	dir := getDir("assets/slots/" + slot + "/ads/" + id)
-	ioutil.WriteFile(dir+"/asset", buf.Bytes(), os.ModePerm)
-	// gocache.Set(assetKey(slot, id), asset_data, -1)
-	// rd.Set(assetKey(slot, id), asset_data)
+	out, err := os.Create(dir + "/asset")
+	defer out.Close()
+	if err != nil {
+		log.Printf("%v", err)
+		r.Status(500)
+		return
+	}
+	if _, err = io.Copy(out, f); err != nil {
+		log.Printf("%v", err)
+		r.Status(500)
+		return
+	}
+
 	rd.RPush(slotKey(slot), id)
 	rd.SAdd(advertiserKey(advrId), key)
 
