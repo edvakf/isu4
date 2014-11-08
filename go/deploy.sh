@@ -7,7 +7,7 @@ SERVERS=${SERVERS:-isucon1 isucon2 isucon3}
 for SERVER in ${SERVERS}
 do
     echo $SERVER
-    rsync --dry-run -avz ./ isucon@$SERVER:/home/isucon/webapp/go/
+    rsync -avz ./ isucon@$SERVER:/home/isucon/webapp/go/
     ssh -t isucon@$SERVER bash -c 'env; cd /home/isucon/webapp/go && /home/isucon/webapp/go/build.sh && sudo -H supervisorctl restart isucon_go'
 done
 
