@@ -19,6 +19,7 @@ import (
 
 	"github.com/go-martini/martini"
 	"github.com/go-redis/redis"
+	"github.com/golang/groupcache"
 	"github.com/martini-contrib/render"
 	goCache "github.com/pmylund/go-cache"
 )
@@ -345,10 +346,15 @@ func routeGetAdAsset(r render.Render, res http.ResponseWriter, req *http.Request
 
 	res.Header().Set("Content-Type", content_type)
 	// data, _ := rd.Get(assetKey(slot, id)).Result()
-	cache, ok := gocache.Get(assetKey(slot, id))
 	var data string
-	if ok {
-		data = cache.(string)
+	if assetGroup != nil {
+		// groupcache設定があればgroupcacheを使う
+		_ = assetGroup.Get(nil, assetKey(slot, id), groupcache.StringSink(&data))
+	} else {
+		cache, ok := gocache.Get(assetKey(slot, id))
+		if ok {
+			data = cache.(string)
+		}
 	}
 
 	range_str := req.Header.Get("Range")
@@ -577,7 +583,25 @@ func routePostInitialize() (int, string) {
 // グローバル変数にしておく
 var port = flag.Uint("port", 0, "port to listen")
 
+var gPort = flag.Uint("gPort", 0, "groupcache port, eg. 8000")
+var peers = flag.String("peers", "", "groupcache peer, comma separated ex. http://127.0.0.1:8000,http://127.0.0.1:8001")
+
+var assetGroup *groupcache.Group
+
 func main() {
+	if *gPort != 0 {
+		addr := fmt.Sprintf("127.0.0.1:%d", *gPort)
+		groupcachePool := groupcache.NewHTTPPool("http://" + addr)
+
+		if *peers != "" {
+			peerList := strings.Split(*peers, ",")
+			groupcachePool.Set(peerList...)
+		}
+
+		go http.ListenAndServe(addr, groupcachePool)
+		assetGroup = groupcache.NewGroup("assets", 900*1024*1024 /*900MB*/, groupcache.GetterFunc(getAsset))
+	}
+
 	m := martini.Classic()
 
 	m.Use(martini.Static("../public"))
@@ -629,4 +653,16 @@ func main() {
 
 	<-sigchan
 
+}
+
+func getAsset(ctx groupcache.Context, key string, dst groupcache.Sink) error {
+	data, err := rd.Get(key).Result() // key は assetKey(slot, id)
+	if err != nil {
+		return err
+	}
+	err = dst.SetString(data)
+	if err != nil {
+		return err
+	}
+	return nil
 }
