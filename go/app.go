@@ -83,7 +83,7 @@ func init() {
 			Network: "tcp",
 			DB:      0,
 		}
-		remoteServers = []string{"localhost", "localhost", "localhost"}
+		remoteServers = []string{"isu1.localhost:8080", "isu2.localhost:8080", "isu3.localhost:8080"}
 	}
 
 	rd = redis.NewClient(option)
@@ -135,7 +135,7 @@ func advertiserServer(advertiserId string) uint32 {
 	h.Write([]byte(advertiserId))
 	v := h.Sum32()
 	fmt.Printf("%d\n", v)
-	return v%3 + 1
+	return v % uint32(len(remoteServers))
 }
 
 func urlForServer(req *http.Request, advertiserServer uint32, path string) string {
@@ -290,8 +290,6 @@ func routePostAd(r render.Render, req *http.Request, params martini.Params) {
 		r.Status(404)
 		return
 	}
-	servId := advertiserServer(advrId)
-	fmt.Printf("%s\n", urlForServer(req, servId, fmt.Sprintf("/slots/%s/ads", slot)))
 
 	req.ParseMultipartForm(100000)
 	asset := req.MultipartForm.File["asset"][0]
