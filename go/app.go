@@ -60,12 +60,27 @@ type BreakdownReport struct {
 }
 
 var rd *redis.Client
+var redisPort = flag.Uint("redisPort", 0, "port to listen")
 
 func init() {
-	rd = redis.NewTCPClient(&redis.Options{
-		Addr: "localhost:6379",
-		DB:   0,
-	})
+	var option *redis.Options
+
+	if *redisPort == 0 {
+		option = &redis.Options{
+			Addr:    "/dev/shm/redis.sock",
+			Network: "unix",
+			DB:      0,
+		}
+	} else {
+		option = &redis.Options{
+			Addr:    "localhost:6379",
+			Network: "tcp",
+			DB:      0,
+		}
+	}
+
+	rd = redis.NewClient(option)
+
 }
 
 func getDir(name string) string {
