@@ -60,6 +60,8 @@ type BreakdownReport struct {
 	Generations map[string]int `json:"generations"`
 }
 
+var remoteServers []string
+
 var rd *redis.Client
 var redisPort = flag.Uint("redisPort", 0, "port to listen")
 
@@ -74,12 +76,14 @@ func init() {
 			Network: "unix",
 			DB:      0,
 		}
+		remoteServers = []string{"203.104.111.146", "203.104.111.147", "203.104.111.148"}
 	} else {
 		option = &redis.Options{
 			Addr:    "localhost:6379",
 			Network: "tcp",
 			DB:      0,
 		}
+		remoteServers = []string{"localhost", "localhost", "localhost"}
 	}
 
 	rd = redis.NewClient(option)
@@ -95,6 +99,10 @@ func getDir(name string) string {
 
 func urlFor(req *http.Request, path string) string {
 	host := req.Host
+	return urlForWithHost(host, path)
+}
+
+func urlForWithHost(host string, path string) string {
 	if host != "" {
 		return "http://" + host + path
 	} else {
@@ -189,6 +197,7 @@ func getAd(req *http.Request, slot string, id string) *AdWithEndpoints {
 	imp, _ := strconv.Atoi(m["impressions"])
 	path_base := "/slots/" + slot + "/ads/" + id
 	var ad *AdWithEndpoints
+	server := advertiserServer(m["advertiser"])
 	ad = &AdWithEndpoints{
 		Ad{
 			m["slot"],
@@ -199,10 +208,11 @@ func getAd(req *http.Request, slot string, id string) *AdWithEndpoints {
 			m["destination"],
 			imp,
 		},
-		urlFor(req, path_base+"/asset"),
+		urlForWithHost(remoteServers[server], path_base+"/asset"),
 		urlFor(req, path_base+"/redirect"),
 		urlFor(req, path_base+"/count"),
 	}
+	fmt.Printf("%s\n", urlForWithHost(remoteServers[server], path_base+"/asset"))
 	return ad
 }
 
