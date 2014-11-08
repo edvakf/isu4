@@ -134,7 +134,13 @@ func advertiserServer(advertiserId string) uint32 {
 	h := crc32.NewIEEE()
 	h.Write([]byte(advertiserId))
 	v := h.Sum32()
-	fmt.Printf("%d\n", v)
+	return v % uint32(len(remoteServers))
+}
+
+func adServer(adId string) uint32 {
+	h := crc32.NewIEEE()
+	h.Write([]byte(adId))
+	v := h.Sum32()
 	return v % uint32(len(remoteServers))
 }
 
@@ -197,7 +203,7 @@ func getAd(req *http.Request, slot string, id string) *AdWithEndpoints {
 	imp, _ := strconv.Atoi(m["impressions"])
 	path_base := "/slots/" + slot + "/ads/" + id
 	var ad *AdWithEndpoints
-	server := advertiserServer(m["advertiser"])
+	server := adServer(m["id"])
 	ad = &AdWithEndpoints{
 		Ad{
 			m["slot"],
