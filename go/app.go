@@ -625,7 +625,7 @@ func routePostInitialize() (int, string) {
 
 	os.RemoveAll(getDir("assets"))
 
-	cmd := exec.Command("/home/isucon/webapp/go/clear_nginx_remote.sh")
+	cmd := exec.Command("/home/isucon/webapp/go/clear_nginx_cache.sh")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	
