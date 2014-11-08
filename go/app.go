@@ -3,10 +3,14 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"flag"
 	"fmt"
 	"io"
+	"log"
+	"net"
 	"net/http"
 	"os"
+	"os/signal"
 	"regexp"
 	"strconv"
 	"strings"
@@ -542,6 +546,9 @@ func routePostInitialize() (int, string) {
 	return 200, "OK"
 }
 
+// グローバル変数にしておく
+var port = flag.Uint("port", 0, "port to listen")
+
 func main() {
 	m := martini.Classic()
 
@@ -563,5 +570,37 @@ func main() {
 		m.Get("/final_report", routeGetFinalReport)
 	})
 	m.Post("/initialize", routePostInitialize)
-	http.ListenAndServe(":8080", m)
+
+	flag.Parse()
+
+	sigchan := make(chan os.Signal)
+	signal.Notify(sigchan, os.Interrupt)
+	signal.Notify(sigchan, syscall.SIGTERM)
+	signal.Notify(sigchan, syscall.SIGINT)
+
+	var l net.Listener
+	var err error
+	sock := "/dev/shm/server.sock"
+	if *port == 0 {
+		ferr := os.Remove(sock)
+		if ferr != nil {
+			if !os.IsNotExist(ferr) {
+				panic(ferr.Error())
+			}
+		}
+		l, err = net.Listen("unix", sock)
+		os.Chmod(sock, 0777)
+	} else {
+		l, err = net.ListenTCP("tcp", &net.TCPAddr{Port: int(*port)})
+	}
+	if err != nil {
+		panic(err.Error())
+	}
+	go func() {
+		// func Serve(l net.Listener, handler Handler) error
+		log.Println(http.Serve(l, m))
+	}()
+
+	<-sigchan
+
 }
