@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"hash/crc32"
 	"io"
 	"log"
 	"net"
@@ -118,23 +117,6 @@ func incr_map(dict *map[string]int, key string) {
 
 func advertiserId(req *http.Request) string {
 	return req.Header.Get("X-Advertiser-Id")
-}
-
-func advertiserServer(advertiserId string) uint32 {
-	h := crc32.NewIEEE()
-	h.Write([]byte(advertiserId))
-	v := h.Sum32()
-	fmt.Printf("%d\n", v)
-	return v%3 + 1
-}
-
-func urlForServer(req *http.Request, advertiserServer uint32, path string) string {
-	host := req.Host
-	if host != "" {
-		return "http://" + host + "/" + fmt.Sprintf("%d", advertiserServer) + path
-	} else {
-		return path
-	}
 }
 
 func adKey(slot string, id string) string {
@@ -264,12 +246,6 @@ func getLog(id string) map[string][]ClickLog {
 	return result
 }
 
-func redirectRoutePostAd(r render.Render, req *http.Request, params martini.Params) {
-	slot := params["slot"]
-	url := urlFor(req, "/slots/"+slot+"/ad")
-	r.Redirect(url, 307)
-}
-
 func routePostAd(r render.Render, req *http.Request, params martini.Params) {
 	slot := params["slot"]
 
@@ -278,8 +254,6 @@ func routePostAd(r render.Render, req *http.Request, params martini.Params) {
 		r.Status(404)
 		return
 	}
-	servId := advertiserServer(advrId)
-	fmt.Printf("%s\n", urlForServer(req, servId, fmt.Sprintf("/slots/%s/ads", slot)))
 
 	req.ParseMultipartForm(100000)
 	asset := req.MultipartForm.File["asset"][0]
@@ -599,8 +573,7 @@ func main() {
 	}))
 
 	m.Group("/slots/:slot", func(r martini.Router) {
-		m.Post("/ads", redirectRoutePostAd)
-		m.Post("/ads2", routePostAd)
+		m.Post("/ads", routePostAd)
 		m.Get("/ad", routeGetAd)
 		m.Get("/ads/:id", routeGetAdWithId)
 		m.Get("/ads/:id/asset", routeGetAdAsset)
@@ -609,9 +582,7 @@ func main() {
 	})
 	m.Group("/me", func(r martini.Router) {
 		m.Get("/report", routeGetReport)
-		m.Get("/report2", routeGetReport)
 		m.Get("/final_report", routeGetFinalReport)
-		m.Get("/final_report2", routeGetFinalReport)
 	})
 	m.Post("/initialize", routePostInitialize)
 
