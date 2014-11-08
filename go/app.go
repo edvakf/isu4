@@ -634,6 +634,7 @@ func main() {
 	m := martini.Classic()
 
 	m.Use(martini.Static("../public"))
+	m.Use(martini.Static(getDir("assets")))
 	m.Use(render.Renderer(render.Options{
 		Layout: "layout",
 	}))
