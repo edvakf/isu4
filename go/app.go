@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"hash/crc32"
 	"io"
 	"log"
 	"net"
@@ -61,6 +62,8 @@ type BreakdownReport struct {
 	Generations map[string]int `json:"generations"`
 }
 
+var remoteServers []string
+
 var rd *redis.Client
 var redisPort = flag.Uint("redisPort", 0, "port to listen")
 var gocache = goCache.New(30*time.Second, 10*time.Second)
@@ -76,12 +79,14 @@ func init() {
 			Network: "unix",
 			DB:      0,
 		}
+		remoteServers = []string{"10.11.54.146", "10.11.54.148"}
 	} else {
 		option = &redis.Options{
 			Addr:    "localhost:6379",
 			Network: "tcp",
 			DB:      0,
 		}
+		remoteServers = []string{"isu1.localhost:8080", "isu2.localhost:8080", "isu3.localhost:8080"}
 	}
 
 	rd = redis.NewClient(option)
@@ -97,6 +102,10 @@ func getDir(name string) string {
 
 func urlFor(req *http.Request, path string) string {
 	host := req.Host
+	return urlForWithHost(host, path)
+}
+
+func urlForWithHost(host string, path string) string {
 	if host != "" {
 		return "http://" + host + path
 	} else {
@@ -122,6 +131,29 @@ func incr_map(dict *map[string]int, key string) {
 
 func advertiserId(req *http.Request) string {
 	return req.Header.Get("X-Advertiser-Id")
+}
+
+func advertiserServer(advertiserId string) uint32 {
+	h := crc32.NewIEEE()
+	h.Write([]byte(advertiserId))
+	v := h.Sum32()
+	return v % uint32(len(remoteServers))
+}
+
+func adServer(adId string) uint32 {
+	h := crc32.NewIEEE()
+	h.Write([]byte(adId))
+	v := h.Sum32()
+	return v % uint32(len(remoteServers))
+}
+
+func urlForServer(req *http.Request, advertiserServer uint32, path string) string {
+	host := req.Host
+	if host != "" {
+		return "http://" + host + "/" + fmt.Sprintf("%d", advertiserServer) + path
+	} else {
+		return path
+	}
 }
 
 func adKey(slot string, id string) string {
@@ -174,6 +206,7 @@ func getAd(req *http.Request, slot string, id string) *AdWithEndpoints {
 	imp, _ := strconv.Atoi(m["impressions"])
 	path_base := "/slots/" + slot + "/ads/" + id
 	var ad *AdWithEndpoints
+	server := adServer(m["id"])
 	ad = &AdWithEndpoints{
 		Ad{
 			m["slot"],
@@ -184,10 +217,11 @@ func getAd(req *http.Request, slot string, id string) *AdWithEndpoints {
 			m["destination"],
 			imp,
 		},
-		urlFor(req, path_base+"/asset"),
+		urlForWithHost(remoteServers[server], path_base+"/asset"),
 		urlFor(req, path_base+"/redirect"),
 		urlFor(req, path_base+"/count"),
 	}
+	fmt.Printf("%s\n", urlForWithHost(remoteServers[server], path_base+"/asset"))
 	return ad
 }
 
@@ -249,6 +283,12 @@ func getLog(id string) map[string][]ClickLog {
 	}
 
 	return result
+}
+
+func redirectRoutePostAd(r render.Render, req *http.Request, params martini.Params) {
+	slot := params["slot"]
+	url := urlFor(req, "/slots/"+slot+"/ad")
+	r.Redirect(url, 307)
 }
 
 func routePostAd(r render.Render, req *http.Request, params martini.Params) {
