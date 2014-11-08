@@ -340,7 +340,7 @@ func routePostAd(r render.Render, req *http.Request, params martini.Params) {
 	defer f.Close()
 	buf := bytes.NewBuffer(nil)
 	io.Copy(buf, f)
-	asset_data := string(buf.Bytes())
+	//asset_data := string(buf.Bytes())
 
 	dir := getDir("assets/slots/" + slot + "/ads/" + id)
 	ioutil.WriteFile(dir+"/asset", buf.Bytes(), os.ModePerm)
