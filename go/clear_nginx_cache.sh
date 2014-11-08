@@ -5,4 +5,4 @@ do
     ssh -t $SERVER "/home/isucon/webapp/go/nginx_cache.sh"
 done
 
-sleep 1
+sleep 3
