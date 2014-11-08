@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"hash/crc32"
 	"io"
+	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -341,7 +342,9 @@ func routePostAd(r render.Render, req *http.Request, params martini.Params) {
 	io.Copy(buf, f)
 	asset_data := string(buf.Bytes())
 
-	gocache.Set(assetKey(slot, id), asset_data, -1)
+	dir := getDir("assets/slots/" + slot + "/ads/" + id)
+	ioutil.WriteFile(dir+"/asset", buf.Bytes(), os.ModePerm)
+	// gocache.Set(assetKey(slot, id), asset_data, -1)
 	// rd.Set(assetKey(slot, id), asset_data)
 	rd.RPush(slotKey(slot), id)
 	rd.SAdd(advertiserKey(advrId), key)
@@ -384,6 +387,10 @@ func routeGetAdAsset(r render.Render, res http.ResponseWriter, req *http.Request
 	}
 
 	res.Header().Set("Content-Type", content_type)
+	dir := getDir("assets/slots/" + slot + "/ads/" + id)
+	http.ServeFile(res, req, dir+"/asset")
+	return
+
 	// data, _ := rd.Get(assetKey(slot, id)).Result()
 	cache, ok := gocache.Get(assetKey(slot, id))
 	var data string
@@ -608,6 +615,7 @@ func routePostInitialize() (int, string) {
 	}
 	path := getDir("log")
 	os.RemoveAll(path)
+	os.RemoveAll(getDir("assets"))
 
 	gocache.Flush()
 
