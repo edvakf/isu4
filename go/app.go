@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"hash/crc32"
+	"os/exec"
 	"io"
 	"log"
 	"net"
@@ -621,6 +622,18 @@ func routePostInitialize() (int, string) {
 	path := getDir("log")
 	os.RemoveAll(path)
 	os.RemoveAll(getDir("assets"))
+
+	os.RemoveAll(getDir("assets"))
+
+	cmd := exec.Command("/home/isucon/webapp/go/clear_nginx_remote.sh")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	
+	err := cmd.Run()
+	
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	gocache.Flush()
 
