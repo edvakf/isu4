@@ -76,7 +76,7 @@ func init() {
 			Network: "unix",
 			DB:      0,
 		}
-		remoteServers = []string{"203.104.111.146", "203.104.111.147", "203.104.111.148"}
+		remoteServers = []string{"10.11.54.146", "10.11.54.147", "10.11.54.148"}
 	} else {
 		option = &redis.Options{
 			Addr:    "localhost:6379",
