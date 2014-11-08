@@ -599,8 +599,7 @@ func main() {
 	}))
 
 	m.Group("/slots/:slot", func(r martini.Router) {
-		m.Post("/ads", redirectRoutePostAd)
-		m.Post("/ads2", routePostAd)
+		m.Post("/ads", routePostAd)
 		m.Get("/ad", routeGetAd)
 		m.Get("/ads/:id", routeGetAdWithId)
 		m.Get("/ads/:id/asset", routeGetAdAsset)
@@ -609,9 +608,7 @@ func main() {
 	})
 	m.Group("/me", func(r martini.Router) {
 		m.Get("/report", routeGetReport)
-		m.Get("/report2", routeGetReport)
 		m.Get("/final_report", routeGetFinalReport)
-		m.Get("/final_report2", routeGetFinalReport)
 	})
 	m.Post("/initialize", routePostInitialize)
 
