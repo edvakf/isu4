@@ -63,6 +63,8 @@ var rd *redis.Client
 var redisPort = flag.Uint("redisPort", 0, "port to listen")
 
 func init() {
+	flag.Parse()
+
 	var option *redis.Options
 
 	if *redisPort == 0 {
@@ -585,8 +587,6 @@ func main() {
 		m.Get("/final_report", routeGetFinalReport)
 	})
 	m.Post("/initialize", routePostInitialize)
-
-	flag.Parse()
 
 	sigchan := make(chan os.Signal)
 	signal.Notify(sigchan, os.Interrupt)
