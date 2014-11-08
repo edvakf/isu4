@@ -15,10 +15,12 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/go-martini/martini"
 	"github.com/go-redis/redis"
 	"github.com/martini-contrib/render"
+	goCache "github.com/pmylund/go-cache"
 )
 
 type Ad struct {
@@ -61,6 +63,7 @@ type BreakdownReport struct {
 
 var rd *redis.Client
 var redisPort = flag.Uint("redisPort", 0, "port to listen")
+var gocache = goCache.New(30*time.Second, 10*time.Second)
 
 func init() {
 	flag.Parse()
@@ -298,7 +301,8 @@ func routePostAd(r render.Render, req *http.Request, params martini.Params) {
 	io.Copy(buf, f)
 	asset_data := string(buf.Bytes())
 
-	rd.Set(assetKey(slot, id), asset_data)
+	gocache.Set(assetKey(slot, id), asset_data, -1)
+	// rd.Set(assetKey(slot, id), asset_data)
 	rd.RPush(slotKey(slot), id)
 	rd.SAdd(advertiserKey(advrId), key)
 
@@ -340,7 +344,12 @@ func routeGetAdAsset(r render.Render, res http.ResponseWriter, req *http.Request
 	}
 
 	res.Header().Set("Content-Type", content_type)
-	data, _ := rd.Get(assetKey(slot, id)).Result()
+	// data, _ := rd.Get(assetKey(slot, id)).Result()
+	cache, ok := gocache.Get(assetKey(slot, id))
+	var data string
+	if ok {
+		data = cache.(string)
+	}
 
 	range_str := req.Header.Get("Range")
 	if range_str == "" {
@@ -559,6 +568,8 @@ func routePostInitialize() (int, string) {
 	}
 	path := getDir("log")
 	os.RemoveAll(path)
+
+	gocache.Flush()
 
 	return 200, "OK"
 }
